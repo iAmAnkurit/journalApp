@@ -1,12 +1,15 @@
 package com.ankurit.journalApp.service;
 
 import com.ankurit.journalApp.entity.JournalEntry;
+import com.ankurit.journalApp.entity.User;
 import com.ankurit.journalApp.repository.JournalEntryRepository;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +18,24 @@ public class JournalEntryService {
 
     @Autowired
     private JournalEntryRepository journalEntryRepository;
+
+    @Autowired
+    private UserService userService;
+
+    @Transactional
+    public void saveEntry(JournalEntry journalEntry, String userName){
+        try {
+            User user = userService.findByUserName(userName);
+            journalEntry.setDate(LocalDateTime.now());
+            JournalEntry savedJournal = journalEntryRepository.save(journalEntry);
+            user.getJournalEntries().add(savedJournal);
+            userService.saveUserEntry(user);
+        }
+        catch (Exception e) {
+            System.out.println(e.getMessage());
+            throw new RuntimeException("An error occurred while saving entry.",e);
+        }
+    }
 
     public void saveEntry(JournalEntry journalEntry){
         journalEntryRepository.save(journalEntry);
@@ -30,8 +51,11 @@ public class JournalEntryService {
         return journalEntryRepository.findById(id);
     }
 
-    public void  deleteJournalEntry(ObjectId id)
+    public void  deleteJournalEntry(ObjectId id,String userName)
     {
+        User user = userService.findByUserName(userName);
+        user.getJournalEntries().removeIf(x-> x.getId().equals(id));
+        userService.saveUserEntry(user);
         journalEntryRepository.deleteById(id);
     }
 }
